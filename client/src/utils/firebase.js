@@ -11,9 +11,9 @@ const firebaseConfig = {
   measurementId: "G-NVVG35X4S6"
 };
 
-const app = initializeApp(firebaseConfig);
-
-const auth = getAuth(app);
+// Without the API key Firebase throws on load and the whole page goes blank,
+// so only Google sign-in is switched off until VITE_FIREBASE_APIKEY is set at build time
+const auth = firebaseConfig.apiKey ? getAuth(initializeApp(firebaseConfig)) : null;
 
 const provider = new GoogleAuthProvider()
 

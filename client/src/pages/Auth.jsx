@@ -13,6 +13,10 @@ function Auth({isModel = false}) {
     const dispatch = useDispatch()
 
     const handleGoogleAuth = async () => {
+        if (!auth) {
+            alert("Google sign-in isn't set up on this site yet (missing VITE_FIREBASE_APIKEY).")
+            return
+        }
         try {
             const response = await signInWithPopup(auth,provider)
             // the server checks this Google-signed token to know who signed in
