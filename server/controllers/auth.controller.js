@@ -1,10 +1,12 @@
 import genToken from "../config/token.js"
 import User from "../models/user.model.js"
+import { AuthTokenError, verifyFirebaseToken } from "../services/firebaseAuth.service.js"
 
 
 export const googleAuth = async (req,res) => {
     try {
-        const {name , email} = req.body
+        // who is signing in comes from Google's signed token, never from the request body
+        const {name , email} = await verifyFirebaseToken(req.body.idToken)
         let user = await User.findOne({email})
         if(!user){
             user = await User.create({
@@ -25,6 +27,7 @@ export const googleAuth = async (req,res) => {
 
 
     } catch (error) {
+        if (error instanceof AuthTokenError) return res.status(401).json({message: error.message})
         return res.status(500).json({message:`Google auth error ${error}`})
     }
     

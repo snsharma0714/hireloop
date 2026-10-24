@@ -8,18 +8,17 @@ You need free accounts on **GitHub** and **Render** (sign in to Render with GitH
 
 ## 1. Put the project on GitHub
 
-The repository root must be this folder, the one that contains `client/`, `server/`, `Dockerfile` and `render.yaml`.
+The code is already at https://github.com/snsharma0714/hireloop. Its root contains `client/`, `server/`, `Dockerfile` and `render.yaml`, which is what Render needs.
+
+To publish later changes:
 
 ```bash
-cd 3.interviewIQ
-git init
-git add .
-git commit -m "HireLoop.AI"
+git add -A
+git commit -m "Describe the change"
+git push
 ```
 
-Create an empty **private** repository on GitHub, then push to it using the commands GitHub shows.
-
-`.env` files are listed in `.gitignore`, so your secrets are never uploaded. Check that `git status` doesn't list any `.env` file before you push.
+`.env` files are listed in `.gitignore`, so your secrets are never uploaded. Render redeploys automatically after each push.
 
 ## 2. Create the service on Render
 
@@ -33,7 +32,8 @@ Create an empty **private** repository on GitHub, then push to it using the comm
 | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | `server/.env` |
 | `VITE_FIREBASE_APIKEY` | `client/.env` |
 | `VITE_RAZORPAY_KEY_ID` | `client/.env` |
-| `SMTP_USER`, `SMTP_PASS` (optional, for automatic emails) | `server/.env` |
+| `BREVO_API_KEY`, `MAIL_FROM` (optional, for automatic emails) | Your Brevo account. See [Automatic emails](#automatic-emails-optional-free) |
+| `SMTP_USER`, `SMTP_PASS` (optional, leave empty if you use Brevo) | `server/.env` |
 | `CLIENT_URL` | Your Render address, e.g. `https://hireloop.onrender.com`. You can fill it in after the first deploy. |
 
 `JWT_SECRET` is generated for you.
@@ -42,7 +42,7 @@ Create an empty **private** repository on GitHub, then push to it using the comm
 
 ## 3. Allow the new address
 
-- **Firebase:** open Console → Authentication → Settings → **Authorized domains** → add `hireloop.onrender.com` (your Render address). Without this, Google login fails.
+- **Firebase:** open Console → Authentication → Settings → **Authorized domains** → add `hireloop.onrender.com` (your Render address). Without this, Google login fails. The server checks every Google sign-in token against your Firebase project (`interview-28a53`); if you ever switch projects, also set `FIREBASE_PROJECT_ID` on Render.
 - **MongoDB Atlas:** open Network Access → **Add IP address → Allow access from anywhere** (`0.0.0.0/0`). Render's IP address changes, so a fixed allowlist won't work.
 
 ## 4. Check it
@@ -74,10 +74,15 @@ This is enough for a portfolio or college project. For a large public site, use 
 
 ## Automatic emails (optional, free)
 
-Candidates get emails when they apply, move stage, or get an interview invite, and teammates get their invite links by email. Sending uses any SMTP account; Gmail is free:
+Candidates get emails when they apply, move stage, or get an interview invite, and teammates get their invite links by email.
 
-1. Turn on 2-Step Verification for the Gmail account.
-2. Create an app password at https://myaccount.google.com/apppasswords.
-3. Set `SMTP_USER` (the Gmail address) and `SMTP_PASS` (the 16-letter app password) in `server/.env` and on Render.
+**On Render, use Brevo.** Render's free plan may block the ports that Gmail SMTP uses, while Brevo sends over normal HTTPS:
 
-Gmail allows about 500 emails a day. Without these values nothing is sent, and each email shows as "skipped" under Settings > Emails. Other providers work too: also set `SMTP_HOST` and `SMTP_PORT`. Links inside emails use `CLIENT_URL` (set it to your Render URL).
+1. Create a free account at https://www.brevo.com (300 emails a day, no card).
+2. Under **Senders, Domains & Dedicated IPs → Senders**, add and verify the address emails should come from, for example your Gmail address. Brevo emails you a confirmation link.
+3. Under **SMTP & API → API keys**, create a key.
+4. On Render, set `BREVO_API_KEY` (the key) and `MAIL_FROM` (the verified sender address), then redeploy.
+
+**Locally,** Gmail works fine: set `SMTP_USER` (your Gmail address) and `SMTP_PASS` (an app password from https://myaccount.google.com/apppasswords) in `server/.env`. If `BREVO_API_KEY` is set, Brevo is used instead.
+
+Without either, nothing is sent and each email shows as "skipped" under **Settings → Emails**, which also shows any sending errors. Links inside emails use `CLIENT_URL` (set it to your Render address).

@@ -4,14 +4,14 @@ import EmailLog from "../models/emailLog.model.js"
 import Candidate from "../models/candidate.model.js"
 import User from "../models/user.model.js"
 import { clean } from "../services/candidate.service.js"
-import { APP_URL, STAGE_LABELS, TEMPLATES, TEMPLATE_VARS, mailConfigured, sendMail, sendTemplate, settingsOf, templateOf } from "../services/mail.service.js"
+import { APP_URL, STAGE_LABELS, TEMPLATES, TEMPLATE_VARS, mailConfigured, senderAddress, sendMail, sendTemplate, settingsOf, templateOf } from "../services/mail.service.js"
 
 const EMAIL_RX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const validTimezone = (tz) => { try { new Intl.DateTimeFormat("en", { timeZone: tz }); return true } catch { return false } }
 
 const emailState = (org) => ({
     configured: mailConfigured(),
-    sender: mailConfigured() ? (process.env.MAIL_FROM || process.env.SMTP_USER) : null,
+    sender: mailConfigured() ? senderAddress() : null,
     timezone: org.timezone || "Asia/Kolkata",
     settings: settingsOf(org),
     vars: TEMPLATE_VARS,

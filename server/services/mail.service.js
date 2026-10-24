@@ -3,12 +3,39 @@ import EmailLog from "../models/emailLog.model.js"
 import Organization from "../models/organization.model.js"
 import { logActivity } from "./candidate.service.js"
 
-// Free sending through any SMTP account, e.g. Gmail with an app password:
-//   SMTP_USER=you@gmail.com  SMTP_PASS=<16-letter app password>  (SMTP_HOST / SMTP_PORT default to Gmail)
-// Without them nothing is sent, but every email is still recorded as "skipped" so the team can see it.
+// Two free ways to send:
+//  - Brevo's HTTP API (BREVO_API_KEY + MAIL_FROM = a sender verified in Brevo). Works on hosts that
+//    block SMTP ports, like Render's free plan. Used whenever BREVO_API_KEY is set.
+//  - Any SMTP account, e.g. Gmail with an app password:
+//    SMTP_USER=you@gmail.com  SMTP_PASS=<16-letter app password>  (SMTP_HOST / SMTP_PORT default to Gmail)
+// Without either, nothing is sent, but every email is still recorded as "skipped" so the team can see it.
 
 export const APP_URL = () => (process.env.APP_URL || process.env.CLIENT_URL || "http://localhost:5173").replace(/\/$/, "")
-export const mailConfigured = () => Boolean(process.env.SMTP_USER && process.env.SMTP_PASS)
+const useBrevo = () => Boolean(process.env.BREVO_API_KEY)
+export const mailConfigured = () => useBrevo() || Boolean(process.env.SMTP_USER && process.env.SMTP_PASS)
+export const senderAddress = () => process.env.MAIL_FROM || process.env.SMTP_USER || ""
+// tests can point at a local fake; never in production
+const BREVO_URL = process.env.NODE_ENV !== "production" && process.env.BREVO_API_URL || "https://api.brevo.com/v3/smtp/email"
+
+const sendWithBrevo = async ({ fromName, to, subject, text, replyTo }) => {
+    const res = await fetch(BREVO_URL, {
+        method: "POST",
+        headers: { "api-key": process.env.BREVO_API_KEY, "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({
+            sender: { name: fromName, email: senderAddress() },
+            to: [{ email: to }],
+            subject,
+            textContent: text,
+            htmlContent: toHtml(text),
+            ...(replyTo ? { replyTo: { email: replyTo } } : {})
+        }),
+        signal: AbortSignal.timeout(15000)
+    })
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(`Brevo: ${body.message || res.statusText} (${res.status})`)
+    }
+}
 
 // {{placeholders}} each template can use
 export const TEMPLATE_VARS = {
@@ -107,14 +134,18 @@ export const sendMail = async ({ org = null, fromName = "HireLoop", to, subject,
         log.error = "No email address"
     } else if (!mailConfigured()) {
         log.status = "skipped"
-        log.error = "Email isn't set up on the server yet (SMTP_USER / SMTP_PASS)"
+        log.error = "Email isn't set up on the server yet (SMTP_USER / SMTP_PASS, or BREVO_API_KEY)"
     } else {
         try {
-            await transport().sendMail({
-                from: { name: fromName, address: process.env.MAIL_FROM || process.env.SMTP_USER },
-                to, subject, text, html: toHtml(text),
-                ...(replyTo ? { replyTo } : {})
-            })
+            if (useBrevo()) {
+                await sendWithBrevo({ fromName, to, subject, text, replyTo })
+            } else {
+                await transport().sendMail({
+                    from: { name: fromName, address: senderAddress() },
+                    to, subject, text, html: toHtml(text),
+                    ...(replyTo ? { replyTo } : {})
+                })
+            }
             log.status = "sent"
         } catch (error) {
             log.status = "failed"

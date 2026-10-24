@@ -125,7 +125,7 @@ The same room is used for company interviews and for student practice sessions.
 | **Auth** | Google sign-in with Firebase, then a JWT in an httpOnly cookie |
 | **AI** | OpenRouter (`openai/gpt-4o-mini`) for mock interviews, hints, code analysis and interview summaries |
 | **Code execution** | Built-in local runner (Node, Python, Java, C++), with optional Judge0 or Piston |
-| **Email** | Nodemailer over SMTP (works free with a Gmail app password) |
+| **Email** | Brevo HTTP API or Nodemailer over SMTP (both free: Brevo's free plan or a Gmail app password) |
 | **Payments** | Razorpay (credits for AI mock interviews) |
 | **Deployment** | One Docker image (frontend + backend), with a Render blueprint |
 
@@ -270,10 +270,12 @@ Open **http://localhost:5173**, sign in with Google, and choose **Student** or *
 | `JWT_SECRET` | ✅ | Secret used to sign login cookies |
 | `CLIENT_URL` | ✅ | Frontend address, for CORS (`http://localhost:5173` locally) |
 | `APP_URL` | | Public address used in email links (defaults to `CLIENT_URL`) |
+| `FIREBASE_PROJECT_ID` | | Firebase project whose sign-in tokens are accepted (defaults to the project in `client/src/utils/firebase.js`). Set this if you use your own Firebase project |
 | `OPENROUTER_API_KEY` | | AI mock interviews, hints, code analysis and summaries |
 | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | | Buying credits for AI mock interviews |
-| `SMTP_USER`, `SMTP_PASS` | | Turns on automatic emails. With Gmail: your address and an [app password](https://myaccount.google.com/apppasswords) |
-| `SMTP_HOST`, `SMTP_PORT`, `MAIL_FROM` | | Other email providers (defaults: Gmail, port 465, `SMTP_USER`) |
+| `BREVO_API_KEY`, `MAIL_FROM` | | Turns on automatic emails through [Brevo](https://www.brevo.com/)'s free API (300/day). `MAIL_FROM` must be a sender verified in Brevo. **Recommended on Render**, where outgoing mail ports may be blocked |
+| `SMTP_USER`, `SMTP_PASS` | | Or send through SMTP. With Gmail: your address and an [app password](https://myaccount.google.com/apppasswords) |
+| `SMTP_HOST`, `SMTP_PORT` | | Other SMTP providers (defaults: Gmail, port 465) |
 | `JUDGE0_URL`, `JUDGE0_API_KEY` | | Use a Judge0 server instead of the built-in runner |
 | `PISTON_URL` | | Use a Piston server instead of the built-in runner |
 | `RUNNER_EXTRA_PATH` | | Extra folders to search for compilers, e.g. a JDK `bin` folder on Windows |
@@ -324,7 +326,7 @@ docker run -p 8001:8001 --env-file server/.env -e RUNNER_EXTRA_PATH= hireloop
 
 ## Security and privacy
 
-- **Authentication:** Google sign-in through Firebase, then a JWT stored in an **httpOnly**, `SameSite=Strict` cookie (`secure` in production).
+- **Authentication:** Google sign-in through Firebase. The server **verifies the Google-signed ID token** (signature, project, issuer, expiry and verified email) with Google's public keys before logging anyone in, then issues a JWT in an **httpOnly**, `SameSite=Strict` cookie (`secure` in production).
 - **Authorization:** every company route checks the workspace and role (viewer, recruiter or admin). Students and companies can't use each other's APIs, and one workspace can never read another's data.
 - **Interview links:** each room has a random secret token. Rooms hold two people at most, viewers can't join, and the room's Run/Submit stops working once the interview ends.
 - **Consent first:** a student's practice record is shared with a company only when they tick the box on that application, and their code is never shared. Candidates are told about integrity alerts and recording.
@@ -363,6 +365,7 @@ Live room events (Socket.IO): `join-room`, `signal`, `code-change`, `run-output`
 
 ## Known limitations
 
+- **Email on free hosting.** Some hosts block outgoing mail ports, so use Brevo (`BREVO_API_KEY`) there instead of Gmail SMTP.
 - **Free hosting sleeps.** On Render's free plan the app pauses after about 15 minutes without visitors and takes 30–60 seconds to wake up.
 - **Video on strict networks.** Calls connect browser to browser. Some campus or office networks block this unless a TURN server is configured (`VITE_TURN_*`).
 - **Languages depend on the machine.** Locally, Python, Java and C++ need their compilers installed. The Docker image includes all of them.

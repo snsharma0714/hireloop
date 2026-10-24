@@ -23,7 +23,12 @@ services:
         sync: false
       - key: VITE_RAZORPAY_KEY_ID
         sync: false
-      # optional: automatic emails (Gmail address + app password); links in emails use CLIENT_URL
+      # optional: automatic emails. On Render's free plan use Brevo (BREVO_API_KEY + MAIL_FROM);
+      # SMTP_USER / SMTP_PASS (Gmail) work where outgoing mail ports aren't blocked. Email links use CLIENT_URL.
+      - key: BREVO_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        sync: false
       - key: SMTP_USER
         sync: false
       - key: SMTP_PASS
