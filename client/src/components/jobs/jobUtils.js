@@ -21,7 +21,7 @@ export const timeAgo = (date) => {
 }
 
 // "Full-time • Bengaluru • Remote • 0-2 years"
-export const jobMeta = (j) => [j.type, j.location, j.remote && "Remote", j.experience, j.salary].filter(Boolean).join(" • ")
+export const jobMeta = (j) => [j.type, j.location, j.remote && !/remote/i.test(j.location || "") && "Remote", j.experience, j.salary].filter(Boolean).join(" • ")
 
 // Moving to an earlier stage (Offer -> Interview), or bringing someone back from Rejected
 export const isBackward = (from, to) => {
