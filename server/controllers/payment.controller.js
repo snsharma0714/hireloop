@@ -1,6 +1,6 @@
 import Payment from "../models/payment.model.js";
 import User from "../models/user.model.js";
-import razorpay from "../services/razorpay.service.js";
+import { getRazorpay, paymentsConfigured } from "../services/razorpay.service.js";
 import crypto from "crypto"
 
 export const createOrder = async (req,res) => {
@@ -9,6 +9,9 @@ export const createOrder = async (req,res) => {
           if (!amount || !credits) {
       return res.status(400).json({ message: "Invalid plan data" });
     }
+    if (!paymentsConfigured()) {
+      return res.status(503).json({ message: "Payments aren't set up on this server yet" });
+    }
 
      const options = {
       amount: amount * 100, // convert to paise
@@ -16,7 +19,7 @@ export const createOrder = async (req,res) => {
       receipt: `receipt_${Date.now()}`,
     };
 
-    const order = await razorpay.orders.create(options)
+    const order = await getRazorpay().orders.create(options)
 
      await Payment.create({
       userId: req.userId,
@@ -41,6 +44,9 @@ export const verifyPayment = async (req,res) => {
         const {razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature} = req.body
+    if (!paymentsConfigured()) {
+      return res.status(503).json({ message: "Payments aren't set up on this server yet" });
+    }
 
       const body = razorpay_order_id + "|" + razorpay_payment_id;
 
