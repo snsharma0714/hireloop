@@ -222,11 +222,27 @@ function Step2Interview({ interviewData, onFinish }) {
     recognition.continuous = true;
     recognition.interimResults = false;
 
-    recognition.onresult = (event) => {
-      const transcript =
-        event.results[event.results.length - 1][0].transcript;
+    // Chrome can report the same finished phrase more than once, and on phones each result
+    // repeats everything said so far. Add each result once, and only the words that are new.
+    const added = new Set();
+    let lastPhrase = "";
+    recognition.onstart = () => {
+      added.clear();
+      lastPhrase = "";
+    };
 
-      setAnswer((prev) => prev + " " + transcript);
+    recognition.onresult = (event) => {
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (!event.results[i].isFinal || added.has(i)) continue;
+        added.add(i);
+
+        const phrase = event.results[i][0].transcript.trim();
+        if (!phrase) continue;
+        const repeatsLast = lastPhrase && phrase.toLowerCase().startsWith(lastPhrase.toLowerCase());
+        const newText = repeatsLast ? phrase.slice(lastPhrase.length).trim() : phrase;
+        lastPhrase = phrase;
+        if (newText) setAnswer((prev) => (prev ? prev.trimEnd() + " " : "") + newText);
+      }
     };
 
     recognition.onerror = (event) => {
@@ -255,6 +271,7 @@ function Step2Interview({ interviewData, onFinish }) {
     recognitionRef.current = recognition;
 
     return () => {
+      recognition.onresult = null;
       recognition.onend = null;
       recognition.onerror = null;
       recognition.stop();
